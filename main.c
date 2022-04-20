@@ -13,8 +13,10 @@
 
 #define N_READERS 1
 #define N_WRITERS 7
-#define N_ITERS 20
+#define N_ITERS 0xFF
 #define ARRAY_SIZE(x) sizeof(x) / sizeof(*x)
+
+#define ERR_FATAL 0xDEADBEEF
 
 typedef struct {
     unsigned int v1;
@@ -74,7 +76,7 @@ static void *reader_thread(void *arg)
 
             if (__atomic_load_n(&shared_config, __ATOMIC_ACQUIRE) ==
                 (config_t *) val) {
-                print_config("read config  ", (config_t *) val);
+                assert(((config_t *) val)->v1 != ERR_FATAL);
                 break;
             }
 
@@ -92,16 +94,17 @@ static void *writer_thread(void *arg)
     (void) arg;
 
     pthread_barrier_wait(&barr);
-    // print_config("updating config", new_config);
 
     for (int i = 0; i < N_ITERS; i++) {
         config_t *new_config = create_config();
-        new_config->v1 = rand();
-        const uintptr_t old_obj = (uintptr_t) __atomic_exchange_n(
-            &shared_config, new_config, __ATOMIC_ACQ_REL);
-        while (__atomic_load_n(&hp_ptr, __ATOMIC_ACQUIRE) == old_obj)
+        new_config->v1 = rand() & N_ITERS;
+        config_t *old_obj =
+            __atomic_exchange_n(&shared_config, new_config, __ATOMIC_ACQ_REL);
+        while (__atomic_load_n(&hp_ptr, __ATOMIC_ACQUIRE) ==
+               (uintptr_t) old_obj)
             ;
-        delete_config((void *) old_obj);
+        // old_obj is retired
+        old_obj->v1 = ERR_FATAL;
     }
 
     return NULL;
