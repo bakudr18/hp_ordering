@@ -2,7 +2,7 @@ TARGET = hp
 CC ?= gcc
 OBJS := main.o
 
-CFLAGS = -g -Wall -Wextra -Wpedantic -O2 -std=c11 -fsanitize=thread
+CFLAGS = -g -Wall -Wextra -Wpedantic -O2 -std=c11 #-fsanitize=thread
 
 all: $(TARGET)
 
